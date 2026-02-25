@@ -62,6 +62,7 @@ impl Value {
         let pad = " ".repeat(indent);
 
         // General Definition
+        // TODO Should only print grad if there is a grad value
         write!(
             f,
             "{}{}={}, grad={}",
@@ -101,7 +102,7 @@ fn main() {
     // Let's look at a basic equation now
     let a: Value = Value {
         value: 2.0,
-        grad: 1.0,
+        grad: 0.0,
         children: Vec::new(),
         operation: String::new(),
         label: String::from("a"),
@@ -111,14 +112,14 @@ fn main() {
 
     let b: Value = Value {
         value: -3.0,
-        grad: 1.0,
+        grad: 0.0,
         children: Vec::new(),
         operation: String::new(),
         label: String::from("b"),
     };
     let c: Value = Value {
         value: 10.0,
-        grad: 1.0,
+        grad: 0.0,
         children: Vec::new(),
         operation: String::new(),
         label: String::from("c"),
@@ -126,7 +127,7 @@ fn main() {
 
     let e: Value = Value {
         value: a.value * b.value,
-        grad: 1.0,
+        grad: 0.0,
         children: vec![a, b], // vec! parameter is a macro to allow for hodling of anytype
         operation: String::from("*"),
         label: String::from("e"),
@@ -134,30 +135,27 @@ fn main() {
 
     let d: Value = Value {
         value: e.value + c.value,
-        grad: 1.0,
+        grad: 0.0,
         children: vec![e, c], // vec! parameter is a macro to allow for hodling of anytype
         operation: String::from("*"),
         label: String::from("d"),
     };
 
-    // println!("Result of d: {}", d.value);
+    let f: Value = Value {
+        value: -2.0,
+        grad: 0.0,
+        children: Vec::new(), // vec! parameter is a macro to allow for hodling of anytype
+        operation: String::new(),
+        label: String::from("f"),
+    };
 
-    println!("{}", d);
-    // println!("Children of d: {}", d.children);
+    let L: Value = Value {
+        value: d.value * f.value,
+        grad: 0.0,
+        children: vec![d, f], // vec! parameter is a macro to allow for hodling of anytype
+        operation: String::from("*"),
+        label: String::from("L"),
+    };
 
-    // {
-    //     // Input Equation: 3a^2 + 4b + c
-    //     let d = 3.0 * f64::powf(a.value, 2.0) + 4.0 * b.value + c.value;
-    //     println!("Result of D1: {}", d);
-    // }
-
-    // {
-    //     // We can also represent this in a function
-    //     fn equation(input_1: f64, input_2: f64, input_3: f64) -> f64 {
-    //         3.0 * f64::powf(input_1, 2.0) + 4.0 * input_2 + input_3
-    //     }
-
-    //     let d: f64 = equation(a.value, b.value, c.value);
-    //     println!("Result of D2: {}", d);
-    // }
+    println!("{}", L);
 }
