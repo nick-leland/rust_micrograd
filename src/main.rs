@@ -9,50 +9,9 @@ struct Value {
     children: Vec<Value>,
     operation: String,
     label: String,
+    // Maybe add a dictionary for values that are computed in relation?
 }
 
-// This is the initial attempt that I had at providing the display
-// The real pain point here was having to manually recall each node which was just a Value object
-// instead of applying any sort of recursion
-// impl Value {
-//     fn has_children(&self) -> bool {
-//         self.children.is_empty()
-//     }
-// }
-//
-// impl fmt::Display for Value {
-//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-//         let has_children = self.has_children();
-//         let applied_gradient = self.grad == 1.0;
-//
-//         if !applied_gradient && has_children {
-//             write!(
-//                 f,
-//                 "Value {}: {} | Grad: {} | Children of {}: [",
-//                 self.label, self.value, self.grad, self.label
-//             )?;
-//             for (i, v) in self.children.iter().enumerate() {
-//                 if v.grad == 1.0 {
-//                     write!(
-//                         f,
-//                         "  Child {} | {}: {} | Grad: {}",
-//                         i, v.label, v.value, v.grad
-//                     )?;
-//                 } else {
-//                     write!(f, "  Child {} | {}: {}", i, v.label, v.value)?;
-//                 }
-//             }
-//             write!(f, "]")
-//         } else if !applied_gradient {
-//             write!(f, "Case B, test {}", self.value)
-//         } else if has_children {
-//             write!(f, "Case C, test {}", self.value)
-//         } else {
-//             write!(f, "Case D, test {}", self.value)
-//         }
-//
-//     }
-// }
 
 impl Value {
     fn has_children(&self) -> bool {
@@ -82,6 +41,26 @@ impl Value {
 
         Ok(())
     }
+    // Have to calculate the gradient with respect to the target point
+    // We can call this recursively, then apply the chain rule back to the loss
+    // a = 2.0
+    // b = -3.0
+    // c = 10.0
+    // e = a * b
+    // d = e + c
+    // f = -2.0
+    // L = d * f
+
+    fn backprop(&self, eval: String) {
+        // Derivative of all children with respect to self
+        for (child) in self.children {
+            // Update gradient with derivative based on operation
+            // +
+            // -
+            // *
+            // /
+        }
+    } 
 }
 
 impl fmt::Display for Value {
@@ -91,9 +70,8 @@ impl fmt::Display for Value {
 }
 
 fn main() {
-    println!("Hello, world!");
-
     // Imagine we are initializing wights for a NN
+    println!("Testing Random");
     let weight_a = rand::thread_rng().next_f64();
     let bias_a = rand::thread_rng().next_f64();
     println!("Initialized weight_a | {}", weight_a);
@@ -107,8 +85,6 @@ fn main() {
         operation: String::new(),
         label: String::from("a"),
     };
-
-    println!("Has Children Result {}", a.has_children());
 
     let b: Value = Value {
         value: -3.0,
