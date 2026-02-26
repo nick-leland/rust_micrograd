@@ -1,17 +1,21 @@
 extern crate rand;
 
 use rand::Rng;
-use std::fmt;
+use std::cell::RefCell;
+use std::rc::Rc;
+use std::{fmt, rc};
 
+#[derive(Default)]
 struct Value {
     value: f64,
     grad: f64,
-    children: Vec<Value>,
+    // children: Vec<Value>, // Argument that this could be a HashSet?
+    children: Vec<Node>, // TODO IMPLIMENT THIS (allow for node values nested
+    // generation and same value in expression)
     operation: String,
     label: String,
-    // Maybe add a dictionary for values that are computed in relation?
+    // visited: Vec<Value>,
 }
-
 
 impl Value {
     fn has_children(&self) -> bool {
@@ -50,20 +54,53 @@ impl Value {
     // d = e + c
     // f = -2.0
     // L = d * f
+    fn _dfs(&self) {}
+    fn _backprop(&self) {}
+    // We are going to make some slight changes to the algorithm below (because we aren't
+    // searching for a key)
+    // if x == null or k == x.key
+    //  return x
+    // if k < x.key
+    //  return DFS(left)
+    // else return DFS(right)
+}
 
-    fn backprop(&self, eval: String) {
-        // Derivative of all children with respect to self
-        for (child) in self.children {
-            // Update gradient with derivative based on operation
-            // +
-            // -
-            // *
-            // /
-        }
-    } 
+#[derive(Clone)]
+struct Node(Rc<RefCell<Value>>);
+
+impl Node {
+    fn new(value: f64, label: impl Into<String>) -> Self {
+        Node(Rc::new(RefCell::new(Value {
+            value,
+            grad: 0.0,
+            children: vec![],
+            operation: "".into(),
+            label: label.into(),
+        })))
+    }
+    fn value(&self) -> f64 {
+        self.0.borrow().value
+    }
+    fn label(&self) -> String {
+        self.0.borrow().label.clone()
+    }
+    // HERE IS WHERE I AM RIGHT NOW
+    // I think I can copy this?
+    fn has_children(&self) -> bool {
+        self.0.borrow().children.is_empty()
+    }
+    fn fmt_with_indent(&self, f: &mut fmt::Formatter<'_>, indent: usize) -> fmt::Result {
+        self.0.borrow().fmt_with_indent(f, indent)
+    }
 }
 
 impl fmt::Display for Value {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.fmt_with_indent(f, 0)
+    }
+}
+
+impl fmt::Display for Node {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.fmt_with_indent(f, 0)
     }
@@ -80,58 +117,52 @@ fn main() {
     // Let's look at a basic equation now
     let a: Value = Value {
         value: 2.0,
-        grad: 0.0,
-        children: Vec::new(),
-        operation: String::new(),
         label: String::from("a"),
+        ..Default::default()
     };
 
     let b: Value = Value {
         value: -3.0,
-        grad: 0.0,
-        children: Vec::new(),
-        operation: String::new(),
         label: String::from("b"),
+        ..Default::default()
     };
+
     let c: Value = Value {
         value: 10.0,
-        grad: 0.0,
-        children: Vec::new(),
-        operation: String::new(),
         label: String::from("c"),
+        ..Default::default()
     };
 
     let e: Value = Value {
         value: a.value * b.value,
-        grad: 0.0,
-        children: vec![a, b], // vec! parameter is a macro to allow for hodling of anytype
+        children: vec![Node::new(a.value, a.label), Node::new(b.value, b.label)], // vec! parameter is a macro to allow for hodling of anytype
         operation: String::from("*"),
         label: String::from("e"),
+        ..Default::default()
     };
 
     let d: Value = Value {
         value: e.value + c.value,
-        grad: 0.0,
-        children: vec![e, c], // vec! parameter is a macro to allow for hodling of anytype
+        // children: vec![e, c], // vec! parameter is a macro to allow for hodling of anytype
+        children: vec![Node::new(e.value, e.label), Node::new(c.value, c.label)], // vec! parameter is a macro to allow for hodling of anytype
         operation: String::from("*"),
         label: String::from("d"),
+        ..Default::default()
     };
 
     let f: Value = Value {
         value: -2.0,
-        grad: 0.0,
-        children: Vec::new(), // vec! parameter is a macro to allow for hodling of anytype
-        operation: String::new(),
         label: String::from("f"),
+        ..Default::default()
     };
 
-    let L: Value = Value {
+    let l: Value = Value {
         value: d.value * f.value,
-        grad: 0.0,
-        children: vec![d, f], // vec! parameter is a macro to allow for hodling of anytype
+        children: vec![Node::new(d.value, d.label), Node::new(f.value, f.label)], // vec! parameter is a macro to allow for hodling of anytype
         operation: String::from("*"),
         label: String::from("L"),
+        ..Default::default()
     };
 
-    println!("{}", L);
+    println!("{}, {}", l, l.operation);
 }
