@@ -2,30 +2,26 @@ extern crate rand;
 
 use rand::Rng;
 use std::cell::RefCell;
+use std::fmt;
 use std::rc::Rc;
-use std::{fmt, rc};
 
 #[derive(Default)]
 struct Value {
     value: f64,
     grad: f64,
-    // children: Vec<Value>, // Argument that this could be a HashSet?
-    children: Vec<Node>, // TODO IMPLIMENT THIS (allow for node values nested
-    // generation and same value in expression)
+    children: Vec<Node>,
     operation: String,
     label: String,
-    // visited: Vec<Value>,
 }
 
+// Value in a computational Graph
 impl Value {
-    fn has_children(&self) -> bool {
+    fn no_children(&self) -> bool {
         self.children.is_empty()
     }
     fn fmt_with_indent(&self, f: &mut fmt::Formatter<'_>, indent: usize) -> fmt::Result {
         let pad = " ".repeat(indent);
 
-        // General Definition
-        // TODO Should only print grad if there is a grad value
         write!(
             f,
             "{}{}={}, grad={}",
@@ -45,24 +41,58 @@ impl Value {
 
         Ok(())
     }
-    // Have to calculate the gradient with respect to the target point
-    // We can call this recursively, then apply the chain rule back to the loss
-    // a = 2.0
-    // b = -3.0
-    // c = 10.0
-    // e = a * b
-    // d = e + c
-    // f = -2.0
-    // L = d * f
-    fn _dfs(&self) {}
-    fn _backprop(&self) {}
-    // We are going to make some slight changes to the algorithm below (because we aren't
-    // searching for a key)
-    // if x == null or k == x.key
-    //  return x
-    // if k < x.key
-    //  return DFS(left)
-    // else return DFS(right)
+
+    fn backward(&self) {
+        // Assume self.grad is already set to the gradient of the output node
+        let op = self.operation.clone();
+        let out_grad = self.grad;
+
+        // Based on operation, compute the gradient of the children
+        match op.as_str() {
+            "+" => {
+                self.children[0].set_grad(self.children[0].grad() + out_grad);
+                self.children[1].set_grad(self.children[1].grad() + out_grad);
+                // self.children[0].set_grad += out_grad;
+                // self.children[1].set_grad += out_grad;
+            }
+            "-" => {
+                self.children[0].set_grad(self.children[0].grad() + out_grad);
+                self.children[1].set_grad(self.children[1].grad() + -out_grad);
+                // self.children[0].grad += out_grad;
+                // self.children[1].grad += -out_grad;
+            }
+            "*" => {
+                self.children[0]
+                    .set_grad(self.children[0].grad() + (self.children[1].value() * out_grad));
+                self.children[1]
+                    .set_grad(self.children[1].grad() + (self.children[0].value() * out_grad));
+                // self.children[0].grad += self.children[1].value * out_grad;
+                // self.children[1].grad += self.children[0].value * out_grad;
+            }
+            "/" => {
+                self.children[0]
+                    .set_grad(self.children[0].grad() + (out_grad / self.children[1].value()));
+                self.children[1].set_grad(
+                    self.children[1].grad()
+                        + ((-out_grad * self.children[0].value())
+                            / (self.children[1].value() * self.children[1].value())),
+                );
+
+                // self.children[0].grad += out_grad / self.children[1].value;
+                // self.children[1].grad += -out_grad * self.children[0].value
+                //     / (self.children[1].value * self.children[1].value);
+            }
+            _ => {}
+        }
+
+        // Now we perform the DFS
+        if self.no_children() {
+        } else {
+            for leaf in self.children.iter() {
+                leaf.backward();
+            }
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -78,17 +108,74 @@ impl Node {
             label: label.into(),
         })))
     }
+
+    fn with_op(
+        value: f64,
+        label: impl Into<String>,
+        op: impl Into<String>,
+        children: Vec<Node>,
+    ) -> Self {
+        Node(Rc::new(RefCell::new(Value {
+            value,
+            grad: 0.0,
+            children,
+            operation: op.into(),
+            label: label.into(),
+        })))
+    }
+
+    fn add(&self, other: &Node, label: impl Into<String>) -> Node {
+        Node::with_op(
+            self.value() + other.value(),
+            label,
+            "+",
+            vec![self.clone(), other.clone()],
+        )
+    }
+
+    fn subtract(&self, other: &Node, label: impl Into<String>) -> Node {
+        Node::with_op(
+            self.value() - other.value(),
+            label,
+            "-",
+            vec![self.clone(), other.clone()],
+        )
+    }
+
+    fn mul(&self, other: &Node, label: impl Into<String>) -> Node {
+        Node::with_op(
+            self.value() * other.value(),
+            label,
+            "*",
+            vec![self.clone(), other.clone()],
+        )
+    }
+
+    fn div(&self, other: &Node, label: impl Into<String>) -> Node {
+        Node::with_op(
+            self.value() / other.value(),
+            label,
+            "/",
+            vec![self.clone(), other.clone()],
+        )
+    }
+
     fn value(&self) -> f64 {
         self.0.borrow().value
     }
-    fn label(&self) -> String {
-        self.0.borrow().label.clone()
+
+    fn grad(&self) -> f64 {
+        self.0.borrow().grad
     }
-    // HERE IS WHERE I AM RIGHT NOW
-    // I think I can copy this?
-    fn has_children(&self) -> bool {
-        self.0.borrow().children.is_empty()
+
+    fn set_grad(&self, grad: f64) {
+        self.0.borrow_mut().grad = grad
     }
+
+    fn backward(&self) {
+        self.0.borrow().backward()
+    }
+
     fn fmt_with_indent(&self, f: &mut fmt::Formatter<'_>, indent: usize) -> fmt::Result {
         self.0.borrow().fmt_with_indent(f, indent)
     }
@@ -114,55 +201,30 @@ fn main() {
     println!("Initialized weight_a | {}", weight_a);
     println!("Initialized bias_a | {}", bias_a);
 
-    // Let's look at a basic equation now
-    let a: Value = Value {
-        value: 2.0,
-        label: String::from("a"),
-        ..Default::default()
-    };
+    // a = 2.0
+    // b = -3.0
+    // c = 10.0
+    // e = a * b
+    // d = e + c
+    // f = -2.0
+    // L = d * f
 
-    let b: Value = Value {
-        value: -3.0,
-        label: String::from("b"),
-        ..Default::default()
-    };
+    {
+        println!("New Operations");
+        let a = Node::new(2.0, "a");
+        let b = Node::new(-3.0, "b");
+        let c = Node::new(10.0, "c");
+        let f = Node::new(-2.0, "f");
 
-    let c: Value = Value {
-        value: 10.0,
-        label: String::from("c"),
-        ..Default::default()
-    };
+        let e = a.mul(&b, "e");
+        let d = e.add(&c, "d");
+        let l = d.mul(&f, "L");
 
-    let e: Value = Value {
-        value: a.value * b.value,
-        children: vec![Node::new(a.value, a.label), Node::new(b.value, b.label)], // vec! parameter is a macro to allow for hodling of anytype
-        operation: String::from("*"),
-        label: String::from("e"),
-        ..Default::default()
-    };
-
-    let d: Value = Value {
-        value: e.value + c.value,
-        // children: vec![e, c], // vec! parameter is a macro to allow for hodling of anytype
-        children: vec![Node::new(e.value, e.label), Node::new(c.value, c.label)], // vec! parameter is a macro to allow for hodling of anytype
-        operation: String::from("*"),
-        label: String::from("d"),
-        ..Default::default()
-    };
-
-    let f: Value = Value {
-        value: -2.0,
-        label: String::from("f"),
-        ..Default::default()
-    };
-
-    let l: Value = Value {
-        value: d.value * f.value,
-        children: vec![Node::new(d.value, d.label), Node::new(f.value, f.label)], // vec! parameter is a macro to allow for hodling of anytype
-        operation: String::from("*"),
-        label: String::from("L"),
-        ..Default::default()
-    };
-
-    println!("{}, {}", l, l.operation);
+        println!("{}", l);
+        l.set_grad(1.0);
+        l.backward();
+        // println!("{}, {}", l, l.0.borrow().operation);
+        println!("\n\n");
+        println!("{}", l);
+    }
 }
