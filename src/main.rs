@@ -14,7 +14,6 @@ struct Value {
     label: String,
 }
 
-// Value in a computational Graph
 impl Value {
     fn no_children(&self) -> bool {
         self.children.is_empty()
@@ -52,22 +51,16 @@ impl Value {
             "+" => {
                 self.children[0].set_grad(self.children[0].grad() + out_grad);
                 self.children[1].set_grad(self.children[1].grad() + out_grad);
-                // self.children[0].set_grad += out_grad;
-                // self.children[1].set_grad += out_grad;
             }
             "-" => {
                 self.children[0].set_grad(self.children[0].grad() + out_grad);
                 self.children[1].set_grad(self.children[1].grad() + -out_grad);
-                // self.children[0].grad += out_grad;
-                // self.children[1].grad += -out_grad;
             }
             "*" => {
                 self.children[0]
                     .set_grad(self.children[0].grad() + (self.children[1].value() * out_grad));
                 self.children[1]
                     .set_grad(self.children[1].grad() + (self.children[0].value() * out_grad));
-                // self.children[0].grad += self.children[1].value * out_grad;
-                // self.children[1].grad += self.children[0].value * out_grad;
             }
             "/" => {
                 self.children[0]
@@ -77,10 +70,6 @@ impl Value {
                         + ((-out_grad * self.children[0].value())
                             / (self.children[1].value() * self.children[1].value())),
                 );
-
-                // self.children[0].grad += out_grad / self.children[1].value;
-                // self.children[1].grad += -out_grad * self.children[0].value
-                //     / (self.children[1].value * self.children[1].value);
             }
             _ => {}
         }
@@ -223,7 +212,6 @@ fn main() {
         println!("{}", l);
         l.set_grad(1.0);
         l.backward();
-        // println!("{}, {}", l, l.0.borrow().operation);
         println!("\n\n");
         println!("{}", l);
     }
